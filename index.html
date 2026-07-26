@@ -126,12 +126,50 @@
         </sc-if>
       </div>
     </div>
+
+    <div style="background:#f4eee1;border-radius:12px;padding:18px;color:#2a231b">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px">
+        <div style="font-family:'Noto Serif TC',serif;font-size:15px;font-weight:700;letter-spacing:.1em;color:#4a3a29">棋友留言</div>
+        <div style="font-size:11px;color:#8a7860">{{ commentCount }}</div>
+      </div>
+      <sc-if value="{{ adminOn }}">
+        <div onClick="{{ exitAdmin }}" style="margin-bottom:10px;padding:6px 10px;border-radius:7px;background:#9a3b2e;color:#fdf6ea;font-size:11px;cursor:pointer;display:flex;justify-content:space-between">
+          <span>管理模式：可刪除留言</span><span>結束</span>
+        </div>
+      </sc-if>
+      <div style="max-height:300px;overflow-y:auto;display:flex;flex-direction:column;gap:8px">
+        <sc-for list="{{ comments }}" as="c" hint-placeholder-count="2">
+          <div style="padding:10px 11px;border-radius:9px;background:#fffaf0;border:1px solid #e2d8c4">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:4px">
+              <span style="font-family:'Noto Serif TC',serif;font-size:13px;font-weight:700;color:#4a3a29">{{ c.n }}</span>
+              <span style="font-size:10.5px;color:{{ c.tagColor }}">{{ c.tag }}</span>
+            </div>
+            <div style="font-size:12.5px;line-height:1.65;color:#4f4335;text-wrap:pretty">{{ c.t }}</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:5px">
+              <span style="font-size:10.5px;color:#a2937c">{{ c.when }}</span>
+              <sc-if value="{{ c.canDel }}">
+                <span onClick="{{ c.del }}" style="font-size:10.5px;color:#9a3b2e;cursor:pointer;border:1px solid #d8c3ba;border-radius:5px;padding:2px 7px">刪除</span>
+              </sc-if>
+            </div>
+          </div>
+        </sc-for>
+        <sc-if value="{{ noComments }}">
+          <div style="font-size:12px;color:#a2937c;padding:4px 2px">還沒有人留言。挑戰 AI 下完一局就能留下心得。</div>
+        </sc-if>
+      </div>
+      <sc-if value="{{ adminOff }}">
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid #e2d8c4;display:flex;gap:6px;align-items:center">
+          <input type="password" value="{{ pwVal }}" onChange="{{ onPw }}" onKeyDown="{{ onPwKey }}" placeholder="管理密碼" style="flex:1;padding:7px 10px;border-radius:7px;border:1px solid #d8cfbc;background:#fffaf0;color:#2a231b;font-size:12px;font-family:'Noto Sans TC',sans-serif;outline:none" />
+          <div onClick="{{ doAdmin }}" style="padding:7px 12px;border-radius:7px;border:1px solid #c9bda6;background:#fffaf0;color:#6d5c47;font-size:12px;cursor:pointer">管理</div>
+        </div>
+      </sc-if>
+    </div>
   </div>
 
   <sc-if value="{{ narrowGame }}">
-    <div style="width:100%;max-width:1120px;display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
+    <div style="width:100%;max-width:1120px;display:flex;gap:6px">
       <sc-for list="{{ tabs }}" as="tb" hint-placeholder-count="4">
-        <div onClick="{{ tb.click }}" style="text-align:center;padding:11px 0;border-radius:9px;font-size:13px;cursor:pointer;border:1px solid {{ tb.bd }};background:{{ tb.bg }};color:{{ tb.fg }}">{{ tb.l }}</div>
+        <div onClick="{{ tb.click }}" style="flex:1;text-align:center;padding:11px 0;border-radius:9px;font-size:13px;cursor:pointer;border:1px solid {{ tb.bd }};background:{{ tb.bg }};color:{{ tb.fg }}">{{ tb.l }}</div>
       </sc-for>
     </div>
   </sc-if>
@@ -232,9 +270,11 @@
         <sc-if value="{{ hasShared }}">
           <div style="margin-top:6px;font-size:11px;color:#5f7f52;text-align:center;word-break:break-all">{{ sharedMsg }}</div>
         </sc-if>
-        <sc-if value="{{ canAct }}">
+        <sc-if value="{{ canPlay }}">
           <div style="display:flex;gap:8px;margin-top:10px">
-            <div onClick="{{ undoAsk }}" style="flex:1;text-align:center;padding:10px 0;border-radius:8px;font-size:12.5px;cursor:pointer;border:1px solid #c9bda6;background:#fffaf0;color:#4a3a29">請求悔棋</div>
+            <sc-if value="{{ canUndoAsk }}">
+              <div onClick="{{ undoAsk }}" style="flex:1;text-align:center;padding:10px 0;border-radius:8px;font-size:12.5px;cursor:pointer;border:1px solid #c9bda6;background:#fffaf0;color:#4a3a29">請求悔棋</div>
+            </sc-if>
             <div onClick="{{ resignOnline }}" style="flex:1;text-align:center;padding:10px 0;border-radius:8px;font-size:12.5px;cursor:pointer;border:1px solid #c9bda6;background:#fffaf0;color:#4a3a29">認輸</div>
           </div>
         </sc-if>
@@ -407,43 +447,6 @@
         </div>
       </div>
 
-      <div style="background:#f4eee1;border-radius:12px;padding:16px;color:#2a231b;box-shadow:0 16px 34px rgba(0,0,0,.35);display:{{ talkDisplay }};flex-direction:column">
-        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px">
-          <div style="font-family:'Noto Serif TC',serif;font-size:15px;font-weight:700;letter-spacing:.1em;color:#4a3a29">棋友留言</div>
-          <div style="font-size:11px;color:#8a7860">{{ commentCount }}</div>
-        </div>
-        <sc-if value="{{ adminOn }}">
-          <div onClick="{{ exitAdmin }}" style="margin-bottom:10px;padding:6px 10px;border-radius:7px;background:#9a3b2e;color:#fdf6ea;font-size:11px;cursor:pointer;display:flex;justify-content:space-between">
-            <span>管理模式：可刪除留言</span><span>結束</span>
-          </div>
-        </sc-if>
-        <div style="max-height:260px;overflow-y:auto;display:flex;flex-direction:column;gap:8px">
-          <sc-for list="{{ comments }}" as="c" hint-placeholder-count="2">
-            <div style="padding:10px 11px;border-radius:9px;background:#fffaf0;border:1px solid #e2d8c4">
-              <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:4px">
-                <span style="font-family:'Noto Serif TC',serif;font-size:13px;font-weight:700;color:#4a3a29">{{ c.n }}</span>
-                <span style="font-size:10.5px;color:{{ c.tagColor }}">{{ c.tag }}</span>
-              </div>
-              <div style="font-size:12.5px;line-height:1.65;color:#4f4335;text-wrap:pretty">{{ c.t }}</div>
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:5px">
-                <span style="font-size:10.5px;color:#a2937c">{{ c.when }}</span>
-                <sc-if value="{{ c.canDel }}">
-                  <span onClick="{{ c.del }}" style="font-size:10.5px;color:#9a3b2e;cursor:pointer;border:1px solid #d8c3ba;border-radius:5px;padding:2px 7px">刪除</span>
-                </sc-if>
-              </div>
-            </div>
-          </sc-for>
-          <sc-if value="{{ noComments }}">
-            <div style="font-size:12px;color:#a2937c;padding:4px 2px">還沒有人留言，下完一局就能留下心得。</div>
-          </sc-if>
-        </div>
-        <sc-if value="{{ adminOff }}">
-          <div style="margin-top:12px;padding-top:12px;border-top:1px solid #e2d8c4;display:flex;gap:6px;align-items:center">
-            <input type="password" value="{{ pwVal }}" onChange="{{ onPw }}" onKeyDown="{{ onPwKey }}" placeholder="管理密碼" style="flex:1;padding:7px 10px;border-radius:7px;border:1px solid #d8cfbc;background:#fffaf0;color:#2a231b;font-size:12px;font-family:'Noto Sans TC',sans-serif;outline:none" />
-            <div onClick="{{ doAdmin }}" style="padding:7px 12px;border-radius:7px;border:1px solid #c9bda6;background:#fffaf0;color:#6d5c47;font-size:12px;cursor:pointer">管理</div>
-          </div>
-        </sc-if>
-      </div>
     </div>
   </div>
 
@@ -1045,7 +1048,7 @@ class Component extends DCLogic {
   saveName(v) { this.setState({ name: v }); try { localStorage.setItem('xiangqi_name', v); } catch (e) { /* ignore */ } if (window.XQ) window.XQ.name = v; }
 
   gotoLobby() {
-    this.setState({ screen: 'lobby', roomErr: '' });
+    this.setState({ screen: 'lobby', roomErr: '', tab: 'play' });
     if (window.XQ) window.XQ.watchLobby(true);
     if (this.pendingRoom) { const r = this.pendingRoom; this.pendingRoom = null; this.enterRoom(r); }
   }
@@ -1525,7 +1528,7 @@ class Component extends DCLogic {
       gameDisplay: (s.screen === 'ai' || s.screen === 'online') ? 'flex' : 'none',
       isOnline: s.screen === 'online',
       isAI: s.screen === 'ai',
-      goAI: () => { if (window.XQ) window.XQ.watchLobby(false); this.setState({ screen: 'ai', tab: 'play' }); this.restart(); },
+      goAI: () => { if (window.XQ) window.XQ.watchLobby(false); this.stopBeat(); this.setState({ screen: 'ai', tab: 'play', room: null, roomId: null }); this.restart(); },
       goLobby: () => this.gotoLobby(),
       goHome: () => this.gotoHome(),
       nameInput: s.name,
@@ -1615,12 +1618,15 @@ class Component extends DCLogic {
       narrowGame: s.narrow && (s.screen === 'ai' || s.screen === 'online'),
       onlineDisplay: (s.screen === 'online' && (!s.narrow || s.tab === 'play')) ? 'flex' : 'none',
       canAct: s.screen === 'online' && !s.spectator && this.mySide() !== 0,
+      canPlay: s.screen === 'online' && !s.spectator && this.mySide() !== 0
+        && !!s.room && s.room.status === 'playing' && !s.over,
+      canUndoAsk: s.screen === 'online' && !s.spectator && this.mySide() !== 0
+        && !!s.room && s.room.status === 'playing' && !s.over && (s.room.moves || []).length > 0,
       setupDisplay: (s.screen === 'ai' && (!s.narrow || s.tab === 'play')) ? 'flex' : 'none',
       thinkDisplay: (s.screen === 'ai' && (!s.narrow || s.tab === 'play')) ? 'flex' : 'none',
       logDisplay: (!s.narrow || s.tab === 'log') ? 'flex' : 'none',
-      statsDisplay: (!s.narrow || s.tab === 'stats') ? 'flex' : 'none',
-      talkDisplay: (!s.narrow || s.tab === 'talk') ? 'flex' : 'none',
-      tabs: [['play', '對局'], ['log', '棋譜'], ['stats', '戰績'], ['talk', '留言']].map(([k, l]) => ({
+      statsDisplay: (s.screen === 'ai' && (!s.narrow || s.tab === 'stats')) ? 'flex' : 'none',
+      tabs: (s.screen === 'ai' ? [['play', '對局'], ['log', '棋譜'], ['stats', '戰績']] : [['play', '對局'], ['log', '棋譜']]).map(([k, l]) => ({
         l, click: () => this.setState({ tab: k }),
         bg: s.tab === k ? '#9a3b2e' : 'rgba(0,0,0,.25)',
         fg: s.tab === k ? '#fdf6ea' : '#a08e73',
