@@ -929,8 +929,12 @@ class Component extends DCLogic {
   }
 
   tryAdmin() {
-    if ((this.state.pw || '') === '7417') this.setState({ admin: true, pw: '', netErr: '' });
-    else this.setState({ pw: '', netErr: '管理密碼錯誤' });
+    const pw = this.state.pw || '';
+    if (!pw || !window.XQ || !window.XQ.ready) return;
+    this.setState({ netErr: '驗證中…' });
+    window.XQ.claimAdmin(pw)
+      .then(() => { this.setState({ admin: true, pw: '', netErr: '' }); try { localStorage.setItem('xiangqi_admin', '1'); } catch (e) { /* ignore */ } })
+      .catch(() => this.setState({ pw: '', netErr: '管理密碼錯誤' }));
   }
 
   ago(ts) {
@@ -942,7 +946,10 @@ class Component extends DCLogic {
   }
 
   componentDidMount() {
-    try { const n = localStorage.getItem('xiangqi_name'); if (n) this.setState({ name: n }); } catch (e) { /* ignore */ }
+    try {
+      const n = localStorage.getItem('xiangqi_name'); if (n) this.setState({ name: n });
+      if (localStorage.getItem('xiangqi_admin')) this.setState({ admin: true });
+    } catch (e) { /* ignore */ }
     const hook = () => {
       const xq = window.XQ;
       if (!xq) { setTimeout(hook, 200); return; }
@@ -954,7 +961,15 @@ class Component extends DCLogic {
       });
       xq.onBoard = list => this.setState({ lb: list });
       xq.onPvpBoard = list => this.setState({ pvpLb: list });
-      xq.onRooms = list => this.setState({ rooms: list.filter(r => r.status !== 'done' || this.state.roomId === r.id) });
+      xq.onRooms = list => this.setState({
+        rooms: list.filter(r => {
+          if (r.status === 'done' && this.state.roomId !== r.id) return false;
+          const age = r.lastAt && r.lastAt.toMillis ? (Date.now() - r.lastAt.toMillis()) / 60000 : 0;
+          if (r.status === 'wait' && age > 20) return false;
+          if (age > 180) return false;
+          return true;
+        })
+      });
       xq.onRoom = r => this.onRoomUpdate(r);
       xq.onChat = list => this.setState({ chat: list });
       xq.onState = () => this.setState({ conn: xq.error ? 'err' : (xq.ready ? 'on' : 'wait'), netErr: xq.error ? '連線異常：' + xq.error : '' });
@@ -1330,7 +1345,7 @@ class Component extends DCLogic {
       onPw: e => this.setState({ pw: e.target.value }),
       onPwKey: e => { if (e.key === 'Enter') this.tryAdmin(); },
       doAdmin: () => this.tryAdmin(),
-      exitAdmin: () => this.setState({ admin: false }),
+      exitAdmin: () => { this.setState({ admin: false }); try { localStorage.removeItem('xiangqi_admin'); } catch (e) { /* ignore */ } },
       sendLabel: s.sending ? '送出中…' : '送出留言',
       noComments: !(s.data.comments || []).length,
       nameVal: s.name, msgVal: s.msg,

@@ -1,5 +1,6 @@
 /* 象棋 — Firestore 資料層：統計、留言、排行榜、連線對戰大廳 */
 (async () => {
+  if (window.XQ) return; // 已初始化過，避免重複載入覆蓋既有監聽器
   const V = 'https://www.gstatic.com/firebasejs/10.12.2/';
   const api = {
     ready: false, uid: null, error: null,
@@ -42,8 +43,21 @@
     api.remove = id => F.deleteDoc(F.doc(cComments, id));
     api.removeWin = id => F.deleteDoc(F.doc(cWins, id));
 
+    /* 管理權限：密碼只存在 Firestore，由安全規則在伺服器端比對。
+       前端只送出密碼，寫入成功代表密碼正確。 */
+    api.claimAdmin = async pw => {
+      await F.setDoc(F.doc(db, 'xiangqi', 'stats', 'admins', api.uid), { pw, at: now() });
+      api.admin = true;
+      return true;
+    };
+
     /* --- 連線對戰 --- */
     api.createRoom = async (name, clock) => {
+      // 先清掉自己舊的空房，避免大廳堆積
+      try {
+        const old = await F.getDocs(F.query(cRooms, F.where('host.uid', '==', api.uid)));
+        await Promise.all(old.docs.filter(d => (d.data().status || 'wait') === 'wait').map(d => F.deleteDoc(d.ref)));
+      } catch (e) { /* 清理失敗不影響開房 */ }
       const r = await F.addDoc(cRooms, {
         host: { uid: api.uid, name }, guest: null,
         status: 'wait', clock, moves: [], turn: 1,
