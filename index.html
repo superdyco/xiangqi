@@ -34,8 +34,8 @@
       <div style="font-size:13px;letter-spacing:.22em;color:#a08e73;margin-top:4px">XIANGQI · 引擎對弈</div>
     </div>
     <div style="display:flex;gap:10px;align-items:center">
-      <div style="padding:7px 14px;border:1px solid #4a3a2b;border-radius:999px;font-size:13px;color:#cbb894;background:rgba(0,0,0,.25)">{{ statusText }}</div>
-      <div style="padding:7px 14px;border:1px solid #4a3a2b;border-radius:999px;font-size:13px;color:#cbb894;background:rgba(0,0,0,.25)">{{ levelName }}</div>
+      <div style="padding:7px 14px;border:1px solid #4a3a2b;border-radius:999px;font-size:13px;color:#cbb894;background:rgba(0,0,0,.25);display:{{ statusDisplay }}">{{ statusText }}</div>
+      <div style="padding:7px 14px;border:1px solid #4a3a2b;border-radius:999px;font-size:13px;color:#cbb894;background:rgba(0,0,0,.25);display:{{ levelDisplay }}">{{ levelName }}</div>
       <div style="display:flex;align-items:center;gap:7px;padding:7px 14px;border:1px solid #4a3a2b;border-radius:999px;font-size:12px;background:rgba(0,0,0,.25);color:{{ connColor }}">
         <span style="width:7px;height:7px;border-radius:50%;background:{{ connColor }}"></span>{{ connLabel }}
       </div>
@@ -61,29 +61,55 @@
         <div style="font-size:12.5px;color:#8d7a5f;margin-top:4px;line-height:1.6">公開大廳找對手，或丟連結給朋友。可聊天、觀戰、限時。</div>
       </div>
     </div>
-    <div style="padding:16px 18px;border-radius:12px;background:rgba(0,0,0,.22);border:1px solid #3a2c1e;display:flex;align-items:center;gap:10px">
-      <span style="font-size:12.5px;color:#8d7a5f;white-space:nowrap">你的稱號</span>
-      <input type="text" value="{{ nameInput }}" onChange="{{ onNameSave }}" placeholder="匿名棋友" maxlength="12" style="flex:1;padding:8px 11px;border-radius:7px;border:1px solid #4a3a2b;background:#1c1510;color:#e6d6b6;font-size:13px;font-family:'Noto Sans TC',sans-serif;outline:none" />
+    <div style="background:#f4eee1;border-radius:12px;padding:18px;color:#2a231b">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px">
+        <div style="font-family:'Noto Serif TC',serif;font-size:15px;font-weight:700;letter-spacing:.1em;color:#4a3a29">棋友留言</div>
+        <div style="font-size:11px;color:#8a7860">{{ commentCount }}</div>
+      </div>
+      <sc-if value="{{ adminOn }}">
+        <div onClick="{{ exitAdmin }}" style="margin-bottom:10px;padding:6px 10px;border-radius:7px;background:#9a3b2e;color:#fdf6ea;font-size:11px;cursor:pointer;display:flex;justify-content:space-between">
+          <span>管理模式：可刪除留言</span><span>結束</span>
+        </div>
+      </sc-if>
+      <div style="max-height:300px;overflow-y:auto;display:flex;flex-direction:column;gap:8px">
+        <sc-for list="{{ comments }}" as="c" hint-placeholder-count="2">
+          <div style="padding:10px 11px;border-radius:9px;background:#fffaf0;border:1px solid #e2d8c4">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:4px">
+              <span style="font-family:'Noto Serif TC',serif;font-size:13px;font-weight:700;color:#4a3a29">{{ c.n }}</span>
+              <span style="font-size:10.5px;color:{{ c.tagColor }}">{{ c.tag }}</span>
+            </div>
+            <div style="font-size:12.5px;line-height:1.65;color:#4f4335;text-wrap:pretty">{{ c.t }}</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:5px">
+              <span style="font-size:10.5px;color:#a2937c">{{ c.when }}</span>
+              <sc-if value="{{ c.canDel }}">
+                <span onClick="{{ c.del }}" style="font-size:10.5px;color:#9a3b2e;cursor:pointer;border:1px solid #d8c3ba;border-radius:5px;padding:2px 7px">刪除</span>
+              </sc-if>
+            </div>
+          </div>
+        </sc-for>
+        <sc-if value="{{ noComments }}">
+          <div style="font-size:12px;color:#a2937c;padding:4px 2px">還沒有人留言。挑戰 AI 下完一局就能留下心得。</div>
+        </sc-if>
+      </div>
+      <sc-if value="{{ adminOff }}">
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid #e2d8c4;display:flex;gap:6px;align-items:center">
+          <input type="password" value="{{ pwVal }}" onChange="{{ onPw }}" onKeyDown="{{ onPwKey }}" placeholder="管理密碼" style="flex:1;padding:7px 10px;border-radius:7px;border:1px solid #d8cfbc;background:#fffaf0;color:#2a231b;font-size:12px;font-family:'Noto Sans TC',sans-serif;outline:none" />
+          <div onClick="{{ doAdmin }}" style="padding:7px 12px;border-radius:7px;border:1px solid #c9bda6;background:#fffaf0;color:#6d5c47;font-size:12px;cursor:pointer">管理</div>
+        </div>
+      </sc-if>
     </div>
   </div>
 
   <div style="width:100%;max-width:720px;flex-direction:column;gap:14px;display:{{ lobbyDisplay }}">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
-      <div onClick="{{ goHome }}" style="font-size:13px;color:#a08e73;cursor:pointer">← 回首頁</div>
-      <div style="display:flex;align-items:center;gap:8px">
-        <span style="font-size:12px;color:#8d7a5f">稱號</span>
-        <input type="text" value="{{ nameInput }}" onChange="{{ onNameSave }}" placeholder="匿名棋友" maxlength="12" style="width:130px;padding:6px 10px;border-radius:7px;border:1px solid #4a3a2b;background:#1c1510;color:#e6d6b6;font-size:12.5px;font-family:'Noto Sans TC',sans-serif;outline:none" />
-      </div>
-    </div>
-
     <div style="background:#f4eee1;border-radius:12px;padding:18px;color:#2a231b">
       <div style="font-family:'Noto Serif TC',serif;font-size:15px;font-weight:700;letter-spacing:.1em;color:#4a3a29;margin-bottom:12px">開一間房</div>
+      <input type="text" value="{{ nameInput }}" onChange="{{ onNameSave }}" placeholder="你的稱號（必填）" maxlength="12" style="width:100%;padding:9px 11px;border-radius:8px;border:1px solid {{ nameBorder }};background:#fffaf0;color:#2a231b;font-size:13px;font-family:'Noto Sans TC',sans-serif;outline:none;margin-bottom:10px" />
+      <input type="password" value="{{ roomPwVal }}" onChange="{{ onRoomPw }}" placeholder="房間密碼（留空＝公開房，任何人可加入）" maxlength="20" style="width:100%;padding:9px 11px;border-radius:8px;border:1px solid #c9bda6;background:#fffaf0;color:#2a231b;font-size:13px;font-family:'Noto Sans TC',sans-serif;outline:none;margin-bottom:10px" />
       <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
         <sc-for list="{{ clocks }}" as="ck" hint-placeholder-count="4">
           <div onClick="{{ ck.click }}" style="flex:1;min-width:80px;text-align:center;padding:9px 6px;border-radius:8px;font-size:12.5px;cursor:pointer;border:1px solid {{ ck.bd }};background:{{ ck.bg }};color:{{ ck.fg }}">{{ ck.l }}</div>
         </sc-for>
       </div>
-      <input type="password" value="{{ roomPwVal }}" onChange="{{ onRoomPw }}" placeholder="房間密碼（留空＝公開房，任何人可加入）" maxlength="20" style="width:100%;padding:9px 11px;border-radius:8px;border:1px solid #c9bda6;background:#fffaf0;color:#2a231b;font-size:13px;font-family:'Noto Sans TC',sans-serif;outline:none;margin-bottom:10px" />
       <div onClick="{{ makeRoom }}" style="text-align:center;padding:12px 0;border-radius:9px;font-size:14px;cursor:pointer;background:#9a3b2e;color:#fdf6ea">建立房間並等待對手</div>
       <sc-if value="{{ hasRoomErr }}">
         <div style="margin-top:8px;font-size:12px;color:#9a3b2e;text-align:center">{{ roomErr }}</div>
@@ -127,43 +153,6 @@
       </div>
     </div>
 
-    <div style="background:#f4eee1;border-radius:12px;padding:18px;color:#2a231b">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px">
-        <div style="font-family:'Noto Serif TC',serif;font-size:15px;font-weight:700;letter-spacing:.1em;color:#4a3a29">棋友留言</div>
-        <div style="font-size:11px;color:#8a7860">{{ commentCount }}</div>
-      </div>
-      <sc-if value="{{ adminOn }}">
-        <div onClick="{{ exitAdmin }}" style="margin-bottom:10px;padding:6px 10px;border-radius:7px;background:#9a3b2e;color:#fdf6ea;font-size:11px;cursor:pointer;display:flex;justify-content:space-between">
-          <span>管理模式：可刪除留言</span><span>結束</span>
-        </div>
-      </sc-if>
-      <div style="max-height:300px;overflow-y:auto;display:flex;flex-direction:column;gap:8px">
-        <sc-for list="{{ comments }}" as="c" hint-placeholder-count="2">
-          <div style="padding:10px 11px;border-radius:9px;background:#fffaf0;border:1px solid #e2d8c4">
-            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:4px">
-              <span style="font-family:'Noto Serif TC',serif;font-size:13px;font-weight:700;color:#4a3a29">{{ c.n }}</span>
-              <span style="font-size:10.5px;color:{{ c.tagColor }}">{{ c.tag }}</span>
-            </div>
-            <div style="font-size:12.5px;line-height:1.65;color:#4f4335;text-wrap:pretty">{{ c.t }}</div>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:5px">
-              <span style="font-size:10.5px;color:#a2937c">{{ c.when }}</span>
-              <sc-if value="{{ c.canDel }}">
-                <span onClick="{{ c.del }}" style="font-size:10.5px;color:#9a3b2e;cursor:pointer;border:1px solid #d8c3ba;border-radius:5px;padding:2px 7px">刪除</span>
-              </sc-if>
-            </div>
-          </div>
-        </sc-for>
-        <sc-if value="{{ noComments }}">
-          <div style="font-size:12px;color:#a2937c;padding:4px 2px">還沒有人留言。挑戰 AI 下完一局就能留下心得。</div>
-        </sc-if>
-      </div>
-      <sc-if value="{{ adminOff }}">
-        <div style="margin-top:12px;padding-top:12px;border-top:1px solid #e2d8c4;display:flex;gap:6px;align-items:center">
-          <input type="password" value="{{ pwVal }}" onChange="{{ onPw }}" onKeyDown="{{ onPwKey }}" placeholder="管理密碼" style="flex:1;padding:7px 10px;border-radius:7px;border:1px solid #d8cfbc;background:#fffaf0;color:#2a231b;font-size:12px;font-family:'Noto Sans TC',sans-serif;outline:none" />
-          <div onClick="{{ doAdmin }}" style="padding:7px 12px;border-radius:7px;border:1px solid #c9bda6;background:#fffaf0;color:#6d5c47;font-size:12px;cursor:pointer">管理</div>
-        </div>
-      </sc-if>
-    </div>
   </div>
 
   <sc-if value="{{ narrowGame }}">
@@ -1061,6 +1050,7 @@ class Component extends DCLogic {
   }
   async createRoom() {
     if (!window.XQ || !window.XQ.ready) { this.setState({ roomErr: '尚未連上伺服器' }); return; }
+    if (!(this.state.name || '').trim()) { this.setState({ roomErr: '請先輸入你的稱號' }); return; }
     this.setState({ joining: true, roomErr: '' });
     try {
       const id = await window.XQ.createRoom(this.myName(), this.CLOCKS[this.state.clockPick], (this.state.roomPw || '').trim());
@@ -1082,6 +1072,11 @@ class Component extends DCLogic {
 
   async enterRoom(id, spectate, unlocked) {
     if (!window.XQ || !window.XQ.ready) { this.pendingRoom = id; return; }
+    if (!spectate && !(this.state.name || '').trim()) {
+      this.pendingRoom = null;
+      this.setState({ screen: 'lobby', roomErr: '請先輸入你的稱號再加入' });
+      return;
+    }
     if (!spectate && !unlocked) {
       const r = (this.state.rooms || []).find(x => x.id === id);
       const mine = r && window.XQ.uid && ((r.host && r.host.uid === window.XQ.uid) || (r.guest && r.guest.uid === window.XQ.uid));
@@ -1524,6 +1519,8 @@ class Component extends DCLogic {
       noLeaders: !(s.lb || []).length,
       homeDisplay: s.screen === 'home' ? 'flex' : 'none',
       backDisplay: s.screen === 'home' ? 'none' : 'block',
+      statusDisplay: (s.screen === 'ai' || s.screen === 'online') ? 'block' : 'none',
+      levelDisplay: s.screen === 'ai' ? 'block' : 'none',
       lobbyDisplay: s.screen === 'lobby' ? 'flex' : 'none',
       gameDisplay: (s.screen === 'ai' || s.screen === 'online') ? 'flex' : 'none',
       isOnline: s.screen === 'online',
@@ -1533,6 +1530,7 @@ class Component extends DCLogic {
       goHome: () => this.gotoHome(),
       nameInput: s.name,
       onNameSave: e => this.saveName(e.target.value),
+      nameBorder: (s.name || '').trim() ? '#c9bda6' : '#d98a7a',
       clocks: this.CLOCKS.map((c, i) => ({
         l: c.label, click: () => this.setState({ clockPick: i }),
         bd: s.clockPick === i ? '#9a3b2e' : '#c9bda6',
