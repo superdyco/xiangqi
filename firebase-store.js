@@ -80,6 +80,10 @@
     };
     // 送出密碼換取入場証；密碼錯誤時規則會直接拒絕寫入
     api.unlockRoom = (id, pw) => F.setDoc(F.doc(db, 'xiangqi', 'stats', 'rooms', id, 'gate', api.uid), { pw, at: now() });
+    api.getRoom = async id => {
+      const s = await F.getDoc(F.doc(cRooms, id));
+      return s.exists() ? Object.assign({ id: s.id }, s.data()) : null;
+    };
 
     /* --- 心跳：寫入子文件，不驚扰大廳監聽器 --- */
     api.beat = id => F.setDoc(F.doc(db, 'xiangqi', 'stats', 'rooms', id, 'presence', api.uid), { at: now() });
