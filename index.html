@@ -976,6 +976,7 @@ class Component extends DCLogic {
       if (xq.ready) xq.onState();
     };
     hook();
+    // \u82e5\u8cc7\u6599\u5c64\u88ab\u91cd\u65b0\u8f09\u5165\uff08\u76e3\u807d\u5668\u6b78\u96f6\uff09\uff0c\u81ea\u52a8\u88dc\u639b\u4e26\u91cd\u65b0\u8a02\u95b1\u623f\u9593\n    this.hookTimer = setInterval(() => {\n      if (window.XQ && !window.XQ.onRoom) {\n        hook();\n        if (this.state.roomId && window.XQ.watchRoom) window.XQ.watchRoom(this.state.roomId);\n        if (this.state.screen === 'lobby' && window.XQ.watchLobby) window.XQ.watchLobby(true);\n      }\n    }, 800);
     const mq = window.matchMedia('(max-width: 860px)');
     this.setState({ narrow: mq.matches });
     this.mqh = e => this.setState({ narrow: e.matches });
@@ -1002,7 +1003,7 @@ class Component extends DCLogic {
     }, 1000);
   }
   componentWillUnmount() {
-    clearInterval(this.timer); clearInterval(this.tick);
+    clearInterval(this.timer); clearInterval(this.tick); clearInterval(this.hookTimer);
     if (this.mq && this.mqh) { this.mq.removeEventListener ? this.mq.removeEventListener('change', this.mqh) : this.mq.removeListener(this.mqh); }
   }
 
@@ -1399,7 +1400,9 @@ class Component extends DCLogic {
       })),
       makeRoom: () => this.createRoom(),
       roomList: (s.rooms || []).map(r => {
-        const full = !!r.guest, mine = window.XQ && r.host && r.host.uid === window.XQ.uid;
+        const uid = window.XQ && window.XQ.uid;
+        const mine = !!uid && ((r.host && r.host.uid === uid) || (r.guest && r.guest.uid === uid));
+        const full = !!r.guest;
         return {
           host: r.host ? r.host.name : '?', guest: r.guest ? r.guest.name : '等待中…',
           clock: (r.clock && r.clock.label) || '不限時',

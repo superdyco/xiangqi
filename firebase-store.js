@@ -112,6 +112,10 @@
     api.watchRoom = id => {
       if (unRoom) unRoom(); if (unChat) unChat();
       if (!id) { unRoom = unChat = null; return; }
+      // 先抳一次現況，不等第一個 snapshot
+      F.getDoc(F.doc(cRooms, id)).then(s => {
+        if (s.exists() && api.onRoom) api.onRoom(Object.assign({ id: s.id }, s.data()));
+      }).catch(() => {});
       unRoom = F.onSnapshot(F.doc(cRooms, id), s => api.onRoom && api.onRoom(s.exists() ? Object.assign({ id: s.id }, s.data()) : null));
       unChat = F.onSnapshot(F.query(F.collection(db, 'xiangqi', 'stats', 'rooms', id, 'chat'), F.orderBy('at', 'asc'), F.limit(100)),
         s => api.onChat && api.onChat(s.docs.map(d => d.data())));
