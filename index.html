@@ -83,6 +83,7 @@
           <div onClick="{{ ck.click }}" style="flex:1;min-width:80px;text-align:center;padding:9px 6px;border-radius:8px;font-size:12.5px;cursor:pointer;border:1px solid {{ ck.bd }};background:{{ ck.bg }};color:{{ ck.fg }}">{{ ck.l }}</div>
         </sc-for>
       </div>
+      <input type="password" value="{{ roomPwVal }}" onChange="{{ onRoomPw }}" placeholder="房間密碼（留空＝公開房，任何人可加入）" maxlength="20" style="width:100%;padding:9px 11px;border-radius:8px;border:1px solid #c9bda6;background:#fffaf0;color:#2a231b;font-size:13px;font-family:'Noto Sans TC',sans-serif;outline:none;margin-bottom:10px" />
       <div onClick="{{ makeRoom }}" style="text-align:center;padding:12px 0;border-radius:9px;font-size:14px;cursor:pointer;background:#9a3b2e;color:#fdf6ea">建立房間並等待對手</div>
       <sc-if value="{{ hasRoomErr }}">
         <div style="margin-top:8px;font-size:12px;color:#9a3b2e;text-align:center">{{ roomErr }}</div>
@@ -235,6 +236,12 @@
           <div style="display:flex;gap:8px;margin-top:10px">
             <div onClick="{{ undoAsk }}" style="flex:1;text-align:center;padding:10px 0;border-radius:8px;font-size:12.5px;cursor:pointer;border:1px solid #c9bda6;background:#fffaf0;color:#4a3a29">請求悔棋</div>
             <div onClick="{{ resignOnline }}" style="flex:1;text-align:center;padding:10px 0;border-radius:8px;font-size:12.5px;cursor:pointer;border:1px solid #c9bda6;background:#fffaf0;color:#4a3a29">認輸</div>
+          </div>
+        </sc-if>
+        <sc-if value="{{ oppOffline }}">
+          <div style="margin-top:10px;padding:12px;border-radius:9px;background:#fff4e4;border:1px solid #d9b98a">
+            <div style="font-size:12.5px;color:#8a5a2a;margin-bottom:8px">{{ offlineNote }}</div>
+            <div onClick="{{ claimWin }}" style="text-align:center;padding:8px 0;border-radius:7px;font-size:12.5px;cursor:pointer;background:#9a3b2e;color:#fdf6ea">宣告對手棄局</div>
           </div>
         </sc-if>
         <sc-if value="{{ undoWaiting }}">
@@ -440,6 +447,23 @@
     </div>
   </div>
 
+  <sc-if value="{{ gateOpen }}">
+    <div style="position:fixed;inset:0;z-index:60;background:rgba(14,10,7,.72);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:24px">
+      <div style="width:100%;max-width:340px;background:#f4eee1;border-radius:16px;padding:24px;color:#2a231b;box-shadow:0 30px 80px rgba(0,0,0,.6)">
+        <div style="font-family:'Noto Serif TC',serif;font-size:19px;font-weight:900;color:#4a3a29">這是密碼房</div>
+        <div style="font-size:12.5px;color:#8a7860;margin-top:6px;margin-bottom:16px">請輸入房主給你的密碼</div>
+        <input type="password" value="{{ gatePwVal }}" onChange="{{ onGatePw }}" onKeyDown="{{ onGateKey }}" placeholder="房間密碼" maxlength="20" style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #c9bda6;background:#fffaf0;color:#2a231b;font-size:14px;font-family:'Noto Sans TC',sans-serif;outline:none" />
+        <sc-if value="{{ hasRoomErr }}">
+          <div style="margin-top:8px;font-size:12px;color:#9a3b2e">{{ roomErr }}</div>
+        </sc-if>
+        <div style="display:flex;gap:8px;margin-top:16px">
+          <div onClick="{{ gateCancel }}" style="flex:1;text-align:center;padding:11px 0;border-radius:8px;font-size:13px;cursor:pointer;border:1px solid #c9bda6;background:#fffaf0;color:#6d5c47">取消</div>
+          <div onClick="{{ gateSubmit }}" style="flex:1.4;text-align:center;padding:11px 0;border-radius:8px;font-size:13px;cursor:pointer;background:#9a3b2e;color:#fdf6ea">進入房間</div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
   <sc-if value="{{ showModal }}">
     <div style="position:fixed;inset:0;z-index:50;background:rgba(14,10,7,.72);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:24px">
       <div style="width:100%;max-width:400px;background:#f4eee1;border-radius:16px;padding:24px;color:#2a231b;box-shadow:0 30px 80px rgba(0,0,0,.6)">
@@ -502,7 +526,7 @@ class Component extends DCLogic {
       conn: 'wait', netErr: '', sending: false, admin: false, pw: '',
       tab: 'play', narrow: false, undos: 0, replay: null, replayAt: 0, shared: '', lb: [],
       screen: 'home', rooms: [], room: null, chat: [], chatMsg: '', roomErr: '',
-      clockPick: 1, pvpLb: [], joining: false
+      clockPick: 1, pvpLb: [], joining: false, roomPw: '', gatePw: '', gateFor: null
     };
   }
 
@@ -965,13 +989,14 @@ class Component extends DCLogic {
         rooms: list.filter(r => {
           if (r.status === 'done' && this.state.roomId !== r.id) return false;
           const age = r.lastAt && r.lastAt.toMillis ? (Date.now() - r.lastAt.toMillis()) / 60000 : 0;
-          if (r.status === 'wait' && age > 20) return false;
+          if (r.status === 'wait' && age > 3) return false; // 房主已離線
           if (age > 180) return false;
           return true;
         })
       });
       xq.onRoom = r => this.onRoomUpdate(r);
       xq.onChat = list => this.setState({ chat: list });
+      xq.onPresence = ms => this.setState({ oppSeen: ms });
       xq.onState = () => this.setState({ conn: xq.error ? 'err' : (xq.ready ? 'on' : 'wait'), netErr: xq.error ? '連線異常：' + xq.error : '' });
       if (xq.ready) xq.onState();
     };
@@ -992,10 +1017,16 @@ class Component extends DCLogic {
         if (saved) this.pendingRoom = saved;
       }
     } catch (e) { /* ignore */ }
+    // 關閉分頁時，房主的空房盡量即時清掉
+    this.bye = () => {
+      const s = this.state, r = s.room;
+      if (r && r.host && window.XQ && r.host.uid === window.XQ.uid && r.status === 'wait') window.XQ.leaveRoom(s.roomId);
+    };
+    window.addEventListener('pagehide', this.bye);
     this.tick = setInterval(() => this.forceUpdate(), 30000);
     this.timer = setInterval(() => {
       const s = this.state;
-      if (s.screen === 'online') { this.forceUpdate(); this.checkFlag(); return; }
+      if (s.screen === 'online') { this.forceUpdate(); this.checkFlag(); this.maybeBeat(); return; }
       if (s.over) return;
       const t = Object.assign({}, s.times);
       t[s.turn] = (t[s.turn] || 0) + 1;
@@ -1003,7 +1034,8 @@ class Component extends DCLogic {
     }, 1000);
   }
   componentWillUnmount() {
-    clearInterval(this.timer); clearInterval(this.tick); clearInterval(this.hookTimer);
+    clearInterval(this.timer); clearInterval(this.tick); clearInterval(this.hookTimer); clearInterval(this.beatTimer);
+    if (this.bye) window.removeEventListener('pagehide', this.bye);
     if (this.mq && this.mqh) { this.mq.removeEventListener ? this.mq.removeEventListener('change', this.mqh) : this.mq.removeListener(this.mqh); }
   }
 
@@ -1018,7 +1050,9 @@ class Component extends DCLogic {
     if (this.pendingRoom) { const r = this.pendingRoom; this.pendingRoom = null; this.enterRoom(r); }
   }
   gotoHome() {
-    if (window.XQ) { window.XQ.watchLobby(false); window.XQ.watchRoom(null); }
+    this.stopBeat();
+    this.watchedOther = null;
+    if (window.XQ) { window.XQ.watchLobby(false); window.XQ.watchRoom(null); window.XQ.watchPresence(null, null); }
     try { localStorage.removeItem('xiangqi_room'); } catch (e) { /* ignore */ }
     this.setState({ screen: 'home', room: null, roomId: null, chat: [] });
   }
@@ -1026,24 +1060,66 @@ class Component extends DCLogic {
     if (!window.XQ || !window.XQ.ready) { this.setState({ roomErr: '尚未連上伺服器' }); return; }
     this.setState({ joining: true, roomErr: '' });
     try {
-      const id = await window.XQ.createRoom(this.myName(), this.CLOCKS[this.state.clockPick]);
+      const id = await window.XQ.createRoom(this.myName(), this.CLOCKS[this.state.clockPick], (this.state.roomPw || '').trim());
       this.enterRoom(id);
-    } catch (e) { this.setState({ roomErr: '開房失敗，請再試一次' }); }
+    } catch (e) { this.setState({ roomErr: (e && e.message) || '開房失敗，請再試一次' }); }
     this.setState({ joining: false });
   }
-  async enterRoom(id, spectate) {
+  askGate(id) { this.setState({ gateFor: id, gatePw: '', roomErr: '' }); }
+  async submitGate() {
+    const s = this.state, id = s.gateFor, pw = (s.gatePw || '').trim();
+    if (!id || !pw) return;
+    this.setState({ joining: true, roomErr: '' });
+    try {
+      await window.XQ.unlockRoom(id, pw);
+      this.setState({ gateFor: null, gatePw: '', joining: false });
+      this.enterRoom(id, false, true);
+    } catch (e) { this.setState({ joining: false, gatePw: '', roomErr: '房間密碼錯誤' }); }
+  }
+
+  async enterRoom(id, spectate, unlocked) {
     if (!window.XQ || !window.XQ.ready) { this.pendingRoom = id; return; }
+    if (!spectate && !unlocked) {
+      const r = (this.state.rooms || []).find(x => x.id === id);
+      const mine = r && window.XQ.uid && ((r.host && r.host.uid === window.XQ.uid) || (r.guest && r.guest.uid === window.XQ.uid));
+      if (r && r.locked && !mine) { this.askGate(id); return; }
+      if (!r) {
+        try { await window.XQ.joinRoom(id, this.myName()); }
+        catch (e) {
+          const msg = String((e && e.message) || '');
+          if (msg.indexOf('不存在') >= 0) {
+            try { localStorage.removeItem('xiangqi_room'); } catch (er) { /* ignore */ }
+            this.setState({ screen: 'lobby', roomId: null, room: null, roomErr: '該房間已關閉' });
+            return;
+          }
+          if (msg.indexOf('已滿') < 0) { this.askGate(id); return; }
+          spectate = true;
+        }
+        this.setState({ screen: 'online', roomId: id, spectator: !!spectate, chat: [], roomErr: '' });
+        try { localStorage.setItem('xiangqi_room', id); } catch (er) { /* ignore */ }
+        window.XQ.watchRoom(id);
+        this.startBeat();
+        return;
+      }
+    }
     this.setState({ joining: true, roomErr: '', screen: 'online', roomId: id, spectator: !!spectate, chat: [] });
     try {
       if (!spectate) await window.XQ.joinRoom(id, this.myName());
       try { localStorage.setItem('xiangqi_room', id); } catch (e) { /* ignore */ }
       window.XQ.watchRoom(id);
+      this.startBeat();
     } catch (e) { this.setState({ roomErr: e.message || '無法加入', screen: 'lobby', roomId: null }); }
     this.setState({ joining: false });
   }
   leaveRoom() {
     const s = this.state;
-    if (s.room && s.room.host && s.room.host.uid === window.XQ.uid && s.room.status === 'wait') window.XQ.leaveRoom(s.roomId);
+    // 房主離開等待中的房間，或對局尚未開始／已結束 → 直接刪除，不留空房
+    const r = s.room, uid = window.XQ.uid;
+    const dead = r && (r.status === 'wait' || r.status === 'done' || this.offlineSecs() > 0);
+    if (r && r.host && r.host.uid === uid && dead) window.XQ.leaveRoom(s.roomId);
+    this.stopBeat();
+    this.watchedOther = null;
+    window.XQ.watchPresence(null, null);
     window.XQ.watchRoom(null);
     try { localStorage.removeItem('xiangqi_room'); } catch (e) { /* ignore */ }
     this.setState({ screen: 'lobby', room: null, roomId: null, chat: [] });
@@ -1084,6 +1160,15 @@ class Component extends DCLogic {
       window.XQ.recordPvp(over === this.mySide()).catch(() => {});
     }
     if (!over) this.pvpRecorded = false;
+    const other = (() => {
+      const uid = window.XQ && window.XQ.uid;
+      if (!uid) return null;
+      if (r.host && r.host.uid === uid) return r.guest ? r.guest.uid : null;
+      if (r.guest && r.guest.uid === uid) return r.host ? r.host.uid : null;
+      return null;
+    })();
+    if (other !== this.watchedOther) { this.watchedOther = other; window.XQ.watchPresence(r.id, other); }
+    // 房主在等待中被對手離線 → 房間自動清掉；對戰中改為顯示離線秒數
     this.setState({
       room: r, board: st.board, log: st.log, last: st.last, turn,
       over, banner, sel: -1, targets: [],
@@ -1109,6 +1194,59 @@ class Component extends DCLogic {
       this.setState({ sel: i, targets: this.legalMoves(s.board.slice(), me).filter(x => (x >>> 7) === i).map(x => x & 127) });
     } else this.setState({ sel: -1, targets: [] });
   }
+  /* ---------- 心跳與離線偵測 ----------
+     只在「等對手動作」時送心跳（等人加入、或輪到對手），
+     自己回合時停掉，額度用量約可再省一半。 */
+  BEAT_MS = 30000;
+  OFFLINE_S = 60;
+  startBeat() {
+    clearInterval(this.beatTimer);
+    this.beatTimer = setInterval(() => this.maybeBeat(), this.BEAT_MS);
+    this.maybeBeat();
+  }
+  stopBeat() { clearInterval(this.beatTimer); this.beatTimer = null; this.lastBeat = 0; }
+  needBeat() {
+    const s = this.state, r = s.room;
+    if (s.screen !== 'online' || !r || s.spectator) return false;
+    const me = this.mySide();
+    if (!me) return false;
+    if (r.status === 'wait') return true;
+    if (r.status === 'playing' && !s.over) return r.turn !== me;
+    return false;
+  }
+  maybeBeat() {
+    if (!this.needBeat() || !window.XQ || !window.XQ.ready) return;
+    if (Date.now() - (this.lastBeat || 0) < this.BEAT_MS - 2000) return;
+    this.lastBeat = Date.now();
+    const s = this.state, r = s.room;
+    window.XQ.beat(s.roomId).catch(() => {});
+    // 等待中的房主每分鐘更新房間時間戳，大廳才能濾掉沒人的空房
+    if (r && r.status === 'wait' && this.mySide() === 1 && Date.now() - (this.lastTouch || 0) > 55000) {
+      this.lastTouch = Date.now();
+      window.XQ.touchRoom(s.roomId).catch(() => {});
+    }
+  }
+  otherUid() {
+    const r = this.state.room; if (!r || !window.XQ) return null;
+    const me = this.mySide();
+    if (me === 1) return r.guest ? r.guest.uid : null;
+    if (me === -1) return r.host ? r.host.uid : null;
+    return null;
+  }
+  offlineSecs() {
+    const s = this.state, r = s.room;
+    if (!r || r.status !== 'playing' || s.over || !this.mySide()) return 0;
+    if (r.turn === this.mySide()) return 0; // 等我走，對手不必發心跳
+    const seen = Math.max(s.oppSeen || 0, r.lastAt && r.lastAt.toMillis ? r.lastAt.toMillis() : 0);
+    if (!seen) return 0;
+    const secs = Math.floor((Date.now() - seen) / 1000);
+    return secs > this.OFFLINE_S ? secs : 0;
+  }
+  claimAbandon() {
+    const me = this.mySide();
+    if (me && this.state.roomId) window.XQ.setResult(this.state.roomId, { winner: me, why: '對手棄局' }).catch(() => {});
+  }
+
   elapsed(ts) { return ts && ts.toMillis ? Math.max(0, (Date.now() - ts.toMillis()) / 1000) : 0; }
   liveClock(side) {
     const r = this.state.room;
@@ -1399,13 +1537,21 @@ class Component extends DCLogic {
         fg: s.clockPick === i ? '#fdf6ea' : '#6d5c47'
       })),
       makeRoom: () => this.createRoom(),
+      roomPwVal: s.roomPw,
+      onRoomPw: e => this.setState({ roomPw: e.target.value }),
+      gateOpen: !!s.gateFor,
+      gatePwVal: s.gatePw,
+      onGatePw: e => this.setState({ gatePw: e.target.value }),
+      onGateKey: e => { if (e.key === 'Enter') this.submitGate(); },
+      gateSubmit: () => this.submitGate(),
+      gateCancel: () => this.setState({ gateFor: null, gatePw: '', roomErr: '' }),
       roomList: (s.rooms || []).map(r => {
         const uid = window.XQ && window.XQ.uid;
         const mine = !!uid && ((r.host && r.host.uid === uid) || (r.guest && r.guest.uid === uid));
         const full = !!r.guest;
         return {
           host: r.host ? r.host.name : '?', guest: r.guest ? r.guest.name : '等待中…',
-          clock: (r.clock && r.clock.label) || '不限時',
+          clock: ((r.clock && r.clock.label) || '不限時') + (r.locked ? ' · 🔒 需密碼' : ''),
           state: r.status === 'playing' ? '對戰中' : (r.status === 'done' ? '已結束' : '等待對手'),
           stateColor: r.status === 'playing' ? '#c9962a' : (r.status === 'done' ? '#6f5f49' : '#8fbf7a'),
           btn: mine ? '回到房間' : (full ? '觀戰' : '加入'),
@@ -1421,7 +1567,7 @@ class Component extends DCLogic {
       meName: (() => { const me = this.mySide(); return me === 0 ? '觀戰中' : (me === 1 ? '你（紅）' : '你（黑）'); })(),
       isSpectator: !!s.spectator,
       waitingOpp: !!(s.room && s.room.status === 'wait'),
-      roomLink: s.roomId ? '房號 ' + String(s.roomId).slice(0, 6) : '',
+      roomLink: s.roomId ? ('房號 ' + String(s.roomId).slice(0, 6) + (s.room && s.room.locked ? ' 🔒' : '')) : '',
       copyRoom: () => {
         const url = location.origin + location.pathname + '?r=' + s.roomId;
         if (navigator.clipboard) navigator.clipboard.writeText(url).then(() => this.setState({ shared: '邀請連結已複製' })).catch(() => this.setState({ shared: url }));
@@ -1429,6 +1575,9 @@ class Component extends DCLogic {
         setTimeout(() => this.setState({ shared: '' }), 4000);
       },
       leaveBtn: () => this.leaveRoom(),
+      oppOffline: this.offlineSecs() > 0,
+      offlineNote: (() => { const n = this.offlineSecs(); if (!n) return ''; return n >= 120 ? ('對手已離線約 ' + Math.floor(n / 60) + ' 分鐘') : ('對手已離線 ' + n + ' 秒'); })(),
+      claimWin: () => this.claimAbandon(),
       chatList: (s.chat || []).slice(-40).map(c => ({
         n: c.n, t: c.t,
         mine: window.XQ && c.uid === window.XQ.uid,

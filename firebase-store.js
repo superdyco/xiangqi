@@ -5,7 +5,7 @@
   const api = {
     ready: false, uid: null, error: null,
     onStats: null, onComments: null, onBoard: null, onPvpBoard: null,
-    onRooms: null, onRoom: null, onChat: null, onState: null
+    onRooms: null, onRoom: null, onChat: null, onPresence: null, onState: null
   };
   window.XQ = api;
   const notify = () => { try { api.onState && api.onState(); } catch (e) { /* ignore */ } };
@@ -52,20 +52,48 @@
     };
 
     /* --- 連線對戰 --- */
-    api.createRoom = async (name, clock) => {
+    api.createRoom = async (name, clock, pw) => {
       // 先清掉自己舊的空房，避免大廳堆積
       try {
         const old = await F.getDocs(F.query(cRooms, F.where('host.uid', '==', api.uid)));
-        await Promise.all(old.docs.filter(d => (d.data().status || 'wait') === 'wait').map(d => F.deleteDoc(d.ref)));
+        const stale = old.docs.filter(d => {
+          const v = d.data(), st = v.status || 'wait';
+          if (st === 'wait' || st === 'done') return true;
+          const age = v.lastAt && v.lastAt.toMillis ? (Date.now() - v.lastAt.toMillis()) / 60000 : 999;
+          return age > 30; // 早就斷線的舊局
+        });
+        await Promise.all(stale.map(d => F.deleteDoc(d.ref)));
       } catch (e) { /* 清理失敗不影響開房 */ }
       const r = await F.addDoc(cRooms, {
         host: { uid: api.uid, name }, guest: null,
-        status: 'wait', clock, moves: [], turn: 1,
+        status: 'wait', clock, locked: !!pw, moves: [], turn: 1,
         times: { r: clock.secs || 0, b: clock.secs || 0 },
         undoReq: null, rematch: {}, result: null,
         createdAt: now(), lastAt: now()
       });
+      // 房間密碼存在讀不到的子文件，只由規則內部比對
+      if (pw) {
+        try { await F.setDoc(F.doc(db, 'xiangqi', 'stats', 'rooms', r.id, 'secret', 'pw'), { pw }); }
+        catch (e) { await F.updateDoc(F.doc(cRooms, r.id), { locked: false }); throw new Error('密碼房需要更新安全規則'); }
+      }
       return r.id;
+    };
+    // 送出密碼換取入場証；密碼錯誤時規則會直接拒絕寫入
+    api.unlockRoom = (id, pw) => F.setDoc(F.doc(db, 'xiangqi', 'stats', 'rooms', id, 'gate', api.uid), { pw, at: now() });
+
+    /* --- 心跳：寫入子文件，不驚扰大廳監聽器 --- */
+    api.beat = id => F.setDoc(F.doc(db, 'xiangqi', 'stats', 'rooms', id, 'presence', api.uid), { at: now() });
+    // 等待中的房主定期摸一下房間，讓大廳能分辨空房
+    api.touchRoom = id => F.updateDoc(F.doc(cRooms, id), { lastAt: now() });
+    let unSeen = null;
+    api.watchPresence = (id, otherUid) => {
+      if (unSeen) { unSeen(); unSeen = null; }
+      if (!id || !otherUid) return;
+      unSeen = F.onSnapshot(F.doc(db, 'xiangqi', 'stats', 'rooms', id, 'presence', otherUid),
+        s => {
+          const d = s.exists() ? s.data() : null;
+          api.onPresence && api.onPresence(d && d.at && d.at.toMillis ? d.at.toMillis() : 0);
+        }, e => { /* 尚未有心跳 */ });
     };
     api.joinRoom = (id, name) => F.runTransaction(db, async tx => {
       const ref = F.doc(cRooms, id), s = await tx.get(ref);
